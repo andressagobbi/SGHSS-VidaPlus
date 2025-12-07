@@ -1,5 +1,6 @@
 /**
  * Sistema de Gestão Hospitalar Simplificado (SGHSS) - Demo
+ * Integrado: cadastro/exclusão/profissionais + persistência
  * @author Andressa Bruna Gobbi
  */
 
@@ -26,34 +27,48 @@ const appState = {
 const $ = (sel,root=document) => root.querySelector(sel)
 const $$ = (sel,root=document) => Array.from(root.querySelectorAll(sel))
 
-const STORAGE_KEY = 'sghss_demo_v2'
+const STORAGE_KEY = 'sghss_demo_v2_v1' // versãod de storage (mude se precisar reset)
 
-/** Carrega os agendamentos do localStorage ao iniciar a app. */
+// --------------------------- Persistência (localStorage) ---------------------
+/** Carrega o estado do localStorage (appointments + professionals) */
 function loadStateFromStorage(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY)
     if(raw){
       const parsed = JSON.parse(raw)
-      // Garante que só carrega a chave 'appointments'
-      if(parsed && parsed.appointments) appState.appointments = parsed.appointments
+      // Carrega somente chaves suportadas, mantendo defaults caso não existam
+      if(parsed.appointments) appState.appointments = parsed.appointments
+      if(parsed.professionals) {
+        // Garantia: não substituir profissionais se vazio (mas sobrescrever normalmente)
+        appState.professionals = parsed.professionals
+      }
+      if(parsed.patients) {
+        // opcional: permite persistir pacientes também no futuro
+        appState.patients = parsed.patients
+      }
     }
   }catch(e){
     console.error("Falha ao carregar estado do storage:", e)
   }
 }
 
-/** Salva o estado atual (apenas agendamentos) no localStorage. */
+/** Salva o estado atual (appointments + professionals + optional patients) no localStorage. */
 function persist(){
   try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({appointments: appState.appointments}))
+    const payload = {
+      appointments: appState.appointments,
+      professionals: appState.professionals,
+      patients: appState.patients
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   }catch(e){
-    console.warn("Falha ao persistir dados.")
+    console.warn("Falha ao persistir dados.", e)
   }
 }
 // Listener para persistência antes do fechamento
 window.addEventListener('beforeunload',persist)
 
-// Lógica de navegação entre seções ------------------------------------------
+// --------------------------- Navegação entre seções --------------------------
 $$('.navitem').forEach(el=>el.addEventListener('click',()=>{
   // Limpa o estado 'ativo' anterior
   $$('.navitem').forEach(i=>i.removeAttribute('aria-current'))
@@ -71,6 +86,14 @@ function showSection(name){
   $('#workspace')?.focus()
 }
 
+// --------------------------- Estatísticas / Dashboard -----------------------
+/** Normaliza texto removendo diacríticos e convertendo para lower-case */
+function normalizeText(s){
+  if(!s) return ''
+  // Remove acentos usando NFD + regex (suporta caracteres Unicode)
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
 /** Renderiza os dados estatísticos no Dashboard. */
 function renderStats(){
   // Stats do topo (cards)
@@ -78,18 +101,17 @@ function renderStats(){
   // Valor randômico simulado
   $('#newPatientsWeek').textContent = Math.max(0, Math.floor(Math.random()*6))
   $('#statAppointments').textContent = appState.appointments.length
-  // Controlado pela teleconsulta (start/end call)
 
   $('#bedOccupancy').textContent = appState.beds.occupied + ' / ' + appState.beds.total
   $('#criticalSupplies').textContent = appState.supplies.critical
 
-  // Stats da seção Profissionais
-  const isMed = p => p.role.toLowerCase().includes('méd')
-  const isEnf = p => p.role.toLowerCase().includes('enf')
-  
+  // Stats da seção Profissionais (agora com normalização para detectar "med", "enf")
+  const isMed = p => normalizeText(p.role).includes('med') || normalizeText(p.role).includes('méd') || normalizeText(p.role).includes('dr') || normalizeText(p.role).includes('médico') || normalizeText(p.role).includes('medica') || normalizeText(p.role).includes('médica')
+  const isEnf = p => normalizeText(p.role).includes('enf') || normalizeText(p.role).includes('enfer')
+
   const docs = appState.professionals.filter(isMed)
   const nurses = appState.professionals.filter(isEnf)
-  
+
   $('#countDocs').textContent = docs.length
   $('#countNurses').textContent = nurses.length
   $('#countTechs').textContent = appState.professionals.length - (docs.length + nurses.length)
@@ -97,19 +119,19 @@ function renderStats(){
   // Stats da seção Administração
   $('#leitosStat').textContent = appState.beds.occupied + ' ocupados'
   $('#reservasStat').textContent = Math.floor(Math.random()*12) + ' reservas'
-  // Simulação de valor financeiro formatado para BRL
   $('#financeStat').textContent = 'R$ ' + (Math.floor(Math.random()*500000)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2})
 
   renderTeleAppointments()
 }
 
+// --------------------------- Pacientes -------------------------------------
 /** Renderiza a lista de pacientes com base no filtro. */
 function renderPatients(filter=''){
   const tbody = $('#patientsTable')
   if(!tbody) return // Early exit se a tabela não existe
   tbody.innerHTML=''
 
-  const lowerFilter = filter.toLowerCase()
+  const lowerFilter = (filter || '').toLowerCase()
   // Filtra por nome ou contato
   const filteredRows = appState.patients.filter(p=>
     p.name.toLowerCase().includes(lowerFilter) || (p.contact||'').includes(lowerFilter)
@@ -117,7 +139,6 @@ function renderPatients(filter=''){
 
   filteredRows.forEach(p=>{
     const tr = document.createElement('tr')
-    // Uso de template string para facilitar a renderização
     tr.innerHTML = `<td>${p.name}</td><td>${p.age}</td><td class="small muted">${p.contact}</td><td class="small muted">${p.last}</td><td><button data-id="${p.id}" class="openPatient">Abrir</button></td>`
     tbody.appendChild(tr)
   })
@@ -132,14 +153,14 @@ function openPatient(id){
   const patient = appState.patients.find(x=>x.id===id)
   if(!patient) return alert('Erro: Paciente não encontrado (ID:'+id+')') // Fail-safe
 
-  const content = `<h3>Paciente — ${patient.name}</h3>
+  const content = `<h3>Paciente — ${escapeHtml(patient.name)}</h3>
     <div class="form-row">
-      <div class="field"><label>Idade</label><div>${patient.age}</div></div>
-      <div class="field"><label>Contato</label><div>${patient.contact}</div></div>
+      <div class="field"><label>Idade</label><div>${escapeHtml(String(patient.age))}</div></div>
+      <div class="field"><label>Contato</label><div>${escapeHtml(patient.contact || '')}</div></div>
     </div>
     <div style="margin-top:10px">
       <label>Histórico clínico</label>
-      <textarea readonly>${patient.history.join('\n')}</textarea>
+      <textarea readonly>${escapeHtml((patient.history||[]).join('\n'))}</textarea>
     </div>
     <div style="margin-top:10px;display:flex;gap:8px">
       <button onclick="scheduleFor(${patient.id})">Agendar consulta</button>
@@ -149,9 +170,11 @@ function openPatient(id){
   showModal(content,{width:'640px'})
 }
 
+// --------------------------- Modal Genérico ------------------------------
 /** Exibe o modal global com o conteúdo fornecido. */
 function showModal(content,opts={}){
   const root = $('#modalRoot')
+  if(!root) return
   root.innerHTML = '' // Limpa conteúdo anterior
 
   const backdrop = document.createElement('div')
@@ -175,6 +198,7 @@ function showModal(content,opts={}){
 /** Fecha o modal global. */
 function closeModal(){
   const root = $('#modalRoot')
+  if(!root) return
   root.innerHTML=''
   root.setAttribute('aria-hidden','true')
 }
@@ -183,12 +207,12 @@ function closeModal(){
 function scheduleFor(patientId){
   closeModal()
   showSection('profissionais')
-  // Pré-seleciona paciente e data atual
-  $('#schPatient').value = patientId
-  $('#schDate').value = new Date().toISOString().slice(0,10)
+  // Pré-seleciona paciente e data atual (se os campos existirem)
+  if($('#schPatient')) $('#schPatient').value = patientId
+  if($('#schDate')) $('#schDate').value = new Date().toISOString().slice(0,10)
 }
 
-// Agendamento rápido na seção Profissionais (SIMULADO) ---------------------
+// --------------------------- Agendamento rápido (profissionais) -----------
 if($('#quickSchedule')){
   $('#quickSchedule').addEventListener('submit',e=>{
     e.preventDefault()
@@ -210,7 +234,7 @@ if($('#quickSchedule')){
   })
 }
 
-// Populadores e filtros de UI ----------------------------------------------
+// --------------------------- Populadores e filtros de UI --------------------
 /** Preenche os <select>s de paciente e profissional. */
 function populateSelects(){
   const pSel = $('#schPatient')
@@ -219,13 +243,13 @@ function populateSelects(){
   // Popula o select de Pacientes
   if(pSel){
     pSel.innerHTML = '<option value="">— selecione —</option>'
-    appState.patients.forEach(p=>{pSel.innerHTML += `<option value="${p.id}">${p.name} — ${p.contact}</option>`})
+    appState.patients.forEach(p=>{pSel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)} — ${escapeHtml(p.contact||'')}</option>`})
   }
 
   // Popula o select de Profissionais
   if(profSel){
     profSel.innerHTML = '<option value="">— selecione —</option>'
-    appState.professionals.forEach(p=>{profSel.innerHTML += `<option value="${p.id}">${p.name} — ${p.specialty}</option>`})
+    appState.professionals.forEach(p=>{profSel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)} — ${escapeHtml(p.specialty||'')}</option>`})
   }
 
   // Listener para filtro na seção Pacientes
@@ -243,7 +267,7 @@ function populateSelects(){
   })
 }
 
-// Cadastro de novo paciente ------------------------------------------------
+// --------------------------- Cadastro de novo paciente ---------------------
 $('#newPatientBtn')?.addEventListener('click',()=>openNewPatient())
 $('#addPatient')?.addEventListener('click',()=>openNewPatient())
 
@@ -289,24 +313,168 @@ function openNewPatient(){
     renderPatients()
     populateSelects() // Atualiza os selects de agendamento
     renderStats()
+    persist()
     alert(`Novo paciente ${name} cadastrado com sucesso.`)
   })
 }
 
-// Inicialização da aplicação -----------------------------------------------
+// --------------------------- PROFISSIONAIS (NOVO MÓDULO) --------------------
+
+/** Renderiza a lista de profissionais na tabela #professionalsList */
+function renderProfessionals(){
+  const tbody = $('#professionalsList')
+  if(!tbody) return
+  tbody.innerHTML = ''
+
+  appState.professionals.forEach(p=>{
+    const tr = document.createElement('tr')
+    tr.innerHTML = `
+      <td>${escapeHtml(p.name)}</td>
+      <td>${escapeHtml(p.role)}</td>
+      <td>${escapeHtml(p.specialty || '')}</td>
+      <td class="small muted">${escapeHtml(p.contact || '')}</td>
+      <td>
+        <button class="ghost editProf" data-id="${p.id}" title="Editar">Editar</button>
+        <button class="ghost removeProf" data-id="${p.id}" title="Excluir">Excluir</button>
+      </td>
+    `
+    tbody.appendChild(tr)
+  })
+
+  // listeners para excluir profissional (delegação simples)
+  $$('.removeProf').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const id = Number(e.target.dataset.id)
+      removeProfessional(id)
+    })
+  })
+
+  // listeners para edição (opcional: abre modal simples)
+  $$('.editProf').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const id = Number(e.target.dataset.id)
+      openEditProfessional(id)
+    })
+  })
+}
+
+/** Remove um profissional pelo ID */
+function removeProfessional(id){
+  if(!confirm('Deseja realmente excluir este profissional?')) return
+  const initialLen = appState.professionals.length
+  appState.professionals = appState.professionals.filter(p => p.id !== id)
+  if(appState.professionals.length === initialLen){
+    return alert('Erro: Profissional não encontrado.')
+  }
+  renderProfessionals()
+  populateSelects()
+  renderStats()
+  persist()
+  alert('Profissional removido com sucesso.')
+}
+
+/** Abre modal de edição para um profissional (simples) */
+function openEditProfessional(id){
+  const p = appState.professionals.find(x=>x.id===id)
+  if(!p) return alert('Profissional não encontrado.')
+
+  showModal(`
+    <h3>Editar Profissional</h3>
+    <form id="formEditProfessional">
+      <div class="form-row">
+        <div class="field">
+          <label>Nome</label>
+          <input name="name" value="${escapeHtml(p.name)}" required>
+        </div>
+        <div class="field">
+          <label>Função</label>
+          <input name="role" value="${escapeHtml(p.role)}" required>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <label>Especialidade</label>
+        <input name="specialty" value="${escapeHtml(p.specialty||'')}" required>
+      </div>
+      <div style="margin-top:8px">
+        <label>Contato</label>
+        <input name="contact" value="${escapeHtml(p.contact||'')}">
+      </div>
+      <div style="margin-top:12px">
+        <button type="submit">Salvar</button>
+        <button type="button" class="ghost" onclick="closeModal()">Cancelar</button>
+      </div>
+    </form>
+  `)
+
+  $('#formEditProfessional')?.addEventListener('submit', function(ev){
+    ev.preventDefault()
+    const fd = new FormData(ev.target)
+    p.name = fd.get('name')
+    p.role = fd.get('role')
+    p.specialty = fd.get('specialty')
+    p.contact = fd.get('contact')
+
+    closeModal()
+    renderProfessionals()
+    populateSelects()
+    renderStats()
+    persist()
+    alert('Dados do profissional atualizados.')
+  })
+}
+
+/** Handler para o formulário já existente no HTML (#formNewProfessional) */
+$('#formNewProfessional')?.addEventListener('submit', function(ev){
+  ev.preventDefault()
+  // Captura campos pelo ID (conforme HTML que você forneceu)
+  const name = ($('#profName')?.value || '').trim()
+  const role = ($('#profRole')?.value || '').trim()
+  const specialty = ($('#profSpecialty')?.value || '').trim()
+  const contact = ($('#profContact')?.value || '').trim()
+
+  if(!name || !role){
+    return alert('ERRO: Preencha pelo menos Nome e Função do profissional.')
+  }
+
+  // Cria novo profissional
+  const newProf = {
+    id: Date.now(),
+    name,
+    role,
+    specialty,
+    contact
+  }
+
+  appState.professionals.push(newProf)
+  // Atualiza UI e persistência
+  renderProfessionals()
+  populateSelects()
+  renderStats()
+  persist()
+
+  // Limpa o formulário (mantendo a UX)
+  try{
+    ev.target.reset()
+  }catch(e){ /* ignore */ }
+
+  alert(`Profissional ${name} cadastrado com sucesso.`)
+})
+
+// --------------------------- Inicialização da aplicação ---------------------
 function init(){
   loadStateFromStorage()
   renderStats()
   renderPatients()
+  renderProfessionals() // -> agora renderiza a lista de profissionais ao iniciar
   populateSelects()
   populateTeleTimes()
   showSection('dashboard') // Seção inicial
 
-  // O listener para filtro já foi adicionado em populateSelects, mas deixamos aqui como fallback ou para futuras alterações.
+  // fallback/listener ad-hoc (caso precise)
   // $('#filterPatient')?.addEventListener('input',e=>renderPatients(e.target.value))
 }
 
-// Lógica da teleconsulta (vídeo) ------------------------------------------
+// --------------------------- Teleconsulta (vídeo) --------------------------
 let callStream = null // Variável para armazenar o stream da mídia (câmera/mic)
 
 $('#startCall')?.addEventListener('click',async()=>{
@@ -335,16 +503,12 @@ $('#endCall')?.addEventListener('click',()=>{
   $('#teleActive').textContent = 0
 })
 
-// AGENDAMENTO ONLINE (Telemedicina) ---------------------------------------
-
-// Horários disponíveis mockados
+// --------------------------- Agendamento ONLINE (Telemedicina) ------------
 const availableTimes = [
   "08:00", "09:00", "10:00", "13:00", "14:00", "15:00"
 ]
-
 // Define a data mínima para agendamento (a partir de hoje)
-$('#teleDate').min = new Date().toISOString().slice(0,10)
-
+if($('#teleDate')) $('#teleDate').min = new Date().toISOString().slice(0,10)
 
 /** Preenche o <select> de horários disponíveis. */
 function populateTeleTimes(){
@@ -356,16 +520,11 @@ function populateTeleTimes(){
   })
 }
 
-/** * Checa se um horário já está ocupado por outro agendamento.
- * @param {string} date - Data no formato YYYY-MM-DD.
- * @param {string} time - Hora no formato HH:MM.
- * @param {number} profId - ID do profissional (padrão 3 para telemedicina).
- */
+/** Checa se horário ocupado */
 function isTimeOccupied(date, time, profId = 3){
-  // Note: a.prof pode ser number (interno) ou string (online)
-  return appState.appointments.some(a => 
-    a.date === date && 
-    a.time === time && 
+  return appState.appointments.some(a =>
+    a.date === date &&
+    a.time === time &&
     (Number(a.prof) === profId)
   )
 }
@@ -376,7 +535,6 @@ function renderTeleAppointments(){
   if(!tbody) return
   tbody.innerHTML = ''
 
-  // Ordenação cronológica (melhor UX)
   const sortedAppointments = appState.appointments.slice().sort((a,b)=>{
     const dateComp = a.date.localeCompare(b.date)
     if(dateComp !== 0) return dateComp
@@ -384,22 +542,19 @@ function renderTeleAppointments(){
   })
 
   sortedAppointments.forEach(a=>{
-    // Determina o nome e contato do paciente (pode ser ID ou nome/contato de agendamento online)
-    const patientData = typeof a.patient === 'number' 
+    const patientData = typeof a.patient === 'number'
       ? appState.patients.find(p=>p.id===a.patient)
       : null
-      
+
     const patientName = patientData?.name || a.patient || `Paciente #${a.patient}`
     const contact = a.contact || patientData?.contact || ''
     const symptoms = a.symptoms || ''
 
     const tr = document.createElement('tr')
-    // Uso de escapeHtml é uma boa prática de segurança (contra XSS)
     tr.innerHTML = `<td>${escapeHtml(patientName)}</td><td class="small muted">${escapeHtml(contact)}</td><td class="small muted">${escapeHtml(symptoms)}</td><td class="small muted">${a.date}</td><td class="small muted">${a.time}</td><td><button data-id="${a.id}" class="cancelAppointment ghost">Cancelar</button></td>`
     tbody.appendChild(tr)
   })
 
-  // Adiciona listeners para o botão de cancelamento
   $$('.cancelAppointment').forEach(b=>{
     b.addEventListener('click',e=>{
       cancelAppointment(Number(e.target.dataset.id))
@@ -407,33 +562,17 @@ function renderTeleAppointments(){
   })
 }
 
-/** * Função utilitária para prevenir XSS simples em renderizações.
- * @param {string} str - String a ser escapada.
- */
-function escapeHtml(str){
-  if(!str) return ''
-  // Mapeamento de caracteres HTML especiais
-  return String(str).replace(/[&<>"']/g, s => ({
-    '&':'&amp;',
-    '<':'&lt;',
-    '>':'&gt;',
-    '"':'&quot;',
-    "'":'&#39;'
-  }[s]))
-}
-
 /** Remove um agendamento da lista. */
 function cancelAppointment(id){
   if(!confirm('Confirma o cancelamento deste agendamento?')) return
-  
+
   const initialLength = appState.appointments.length
-  // Filtra o array, removendo o agendamento com o ID correspondente
   appState.appointments = appState.appointments.filter(a => a.id !== id)
-  
+
   if(appState.appointments.length === initialLength) {
     return alert('Erro: Agendamento não encontrado.')
   }
-  
+
   persist()
   renderStats()
   renderTeleAppointments() // Atualiza a lista
@@ -443,11 +582,11 @@ function cancelAppointment(id){
 // Handler para o agendamento de telemedicina (formulário público)
 $('#bookTeleAppointment')?.addEventListener('click',()=>{
   // Captura valores do formulário
-  const name = $('#teleName').value.trim()
-  const contact = $('#teleContact').value.trim()
-  const symptoms = $('#teleSymptoms').value.trim()
-  const date = $('#teleDate').value
-  const time = $('#teleTime').value
+  const name = ($('#teleName')?.value || '').trim()
+  const contact = ($('#teleContact')?.value || '').trim()
+  const symptoms = ($('#teleSymptoms')?.value || '').trim()
+  const date = $('#teleDate')?.value
+  const time = $('#teleTime')?.value
 
   // Validação básica
   if(!name || !contact || !symptoms || !date || !time){
@@ -476,26 +615,23 @@ $('#bookTeleAppointment')?.addEventListener('click',()=>{
   renderStats()
 
   // Limpa o formulário após sucesso
-  $('#teleName').value = ''
-  $('#teleContact').value = ''
-  $('#teleSymptoms').value = ''
+  if($('#teleName')) $('#teleName').value = ''
+  if($('#teleContact')) $('#teleContact').value = ''
+  if($('#teleSymptoms')) $('#teleSymptoms').value = ''
 
   alert(`Teleconsulta agendada para ${name} em ${date} às ${time}. Aguarde contato.`)
 })
 
-
-// Hook para atualizar a lista e horários quando a seção Telemedicina for acessada
+// --------------------------- Hooks adicionais / Relatórios ------------------
 $$('.navitem').forEach(el=>{
   if(el.dataset.section === 'telemedicina'){
     el.addEventListener('click',()=>{
-      // Garante que o select de horários e a lista estão atualizados
       populateTeleTimes()
       renderTeleAppointments()
     })
   }
 })
 
-// Botão de relatório (Simulação) ------------------------------------------
 $('#generateReport')?.addEventListener('click',()=>{
   const type = $('#reportType').value
   const reportData = {
@@ -504,28 +640,27 @@ $('#generateReport')?.addEventListener('click',()=>{
     counts: {
       patients: appState.patients.length,
       appointments: appState.appointments.length,
-      beds_occupied: appState.beds.occupied
+      beds_occupied: appState.beds.occupied,
+      professionals: appState.professionals.length
     }
   }
 
-  // Exibe o JSON formatado no modal
-  showModal(`<h3>Relatório — ${type}</h3>
+  showModal(`<h3>Relatório — ${escapeHtml(type)}</h3>
     <p class="small muted">(Resumo gerado localmente no protótipo)</p>
     <pre style="white-space:pre-wrap; max-height: 400px; overflow: auto;">` +
-      JSON.stringify(reportData, null, 2) +
+      escapeHtml(JSON.stringify(reportData, null, 2)) +
       `</pre>
     <div style="margin-top:8px"><button onclick="closeModal()">Fechar</button></div>`)
 })
 
-// Configurações de segurança (Simulação) ----------------------------------
+// Configurações de segurança (Simulação)
 $('#securityForm')?.addEventListener('submit',e=>{
   e.preventDefault()
-  // Simula a submissão e o salvamento das configurações
   console.log('Dados de segurança a serem salvos (simulação):', new FormData(e.target))
   alert('Configurações de segurança salvas (simulação).')
 })
 
-// Modal de ajuda/perfil -----------------------------------------------------
+// Modal de ajuda/perfil
 $('#helpBtn')?.addEventListener('click',()=>{
   showModal(`<h3>Ajuda & Orientações</h3>
     <p class="small muted">Este é um protótipo, todas as ações são simuladas localmente no navegador (localStorage). 
@@ -533,6 +668,19 @@ $('#helpBtn')?.addEventListener('click',()=>{
 })
 
 $('#profileBtn')?.addEventListener('click',()=>showModal('<h3>Perfil do Usuário</h3><p class="small muted">Aluna: Andressa Bruna Gobbi</p>'))
+
+// --------------------------- Utilitários -----------------------------------
+/** Função utilitária para prevenir XSS simples em renderizações. */
+function escapeHtml(str){
+  if(str === undefined || str === null) return ''
+  return String(str).replace(/[&<>"']/g, s => ( {
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[s]))
+}
 
 // Inicia a aplicação (Entry Point)
 init()
