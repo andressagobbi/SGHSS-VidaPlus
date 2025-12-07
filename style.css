@@ -1,0 +1,161 @@
+:root{
+  /* cores e variáveis globais */
+  --bg:#f5f7fb;
+  --card:#ffffff;
+  --muted:#6b7280;
+  --accent:#0ea5a4;
+  --accent-2:#0f766e;
+  --danger:#ef4444;
+  --glass: rgba(255,255,255,0.7);
+  --radius:14px;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+/* reset básico */
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#eef2f6);color:#0f172a}
+
+/* layout geral */
+.app{max-width:1200px;margin:28px auto;padding:24px}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+
+h1{font-size:20px;margin:0}
+p.lead{margin:0;color:var(--muted)}
+
+/* barra de busca e botões do topo */
+nav.topbar{margin-top:18px;background:transparent;display:flex;gap:12px;flex-wrap:wrap}
+.search{flex:1;display:flex;align-items:center;gap:8px}
+.search input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e6eef5;background:white}
+.controls{display:flex;gap:8px}
+
+/* botões */
+button{background:var(--accent);border:none;color:white;padding:10px 14px;border-radius:10px;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent);border:1px solid rgba(15,118,110,0.12)}
+
+/* estrutura geral do conteúdo */
+main{margin-top:18px;display:grid;grid-template-columns:300px 1fr;gap:18px}
+
+/* sidebar */
+.sidebar{background:var(--card);padding:16px;border-radius:var(--radius);box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+.navlist{display:flex;flex-direction:column;gap:8px}
+.navitem{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;cursor:pointer;color:var(--accent-2);font-weight:600}
+.navitem[aria-current="page"]{background:linear-gradient(90deg, rgba(14,165,164,0.12), rgba(15,118,110,0.06))}
+
+/* área do dashboard e seções */
+.workspace{min-height:600px}
+.card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,0.04);margin-bottom:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stats{display:flex;flex-direction:column}
+.stat-value{font-size:20px;font-weight:700}
+
+/* tabelas */
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;text-align:left;border-bottom:1px solid #eef2f6}
+.muted{color:var(--muted)}
+
+/* responsividade */
+@media (max-width:900px){
+  main{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:repeat(2,1fr)}
+  .logo{width:48px;height:48px}
+}
+@media (max-width:560px){
+  .grid-3{grid-template-columns:1fr}
+}
+
+/* formulários */
+.form-row{display:flex;gap:12px}
+.form-row .field{flex:1;display:flex;flex-direction:column}
+label{font-size:13px;margin-bottom:6px}
+input,select,textarea{padding:10px;border-radius:8px;border:1px solid #e6eef5}
+textarea{min-height:100px}
+
+/* tabs */
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{padding:8px 12px;border-radius:8px;background:transparent;border:1px solid transparent;cursor:pointer}
+.tab.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white}
+
+/* modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:flex;align-items:center;justify-content:center;z-index:60}
+.modal{width:min(920px,96%);background:var(--card);padding:18px;border-radius:12px}
+.modal .top{display:flex;justify-content:space-between;align-items:center}
+.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(15,118,110,0.08);font-weight:600;color:var(--accent-2)}
+
+/* itens pequenos */
+.row{display:flex;gap:12px;align-items:center}
+.right{margin-left:auto}
+.small{font-size:13px}
+.badge{padding:4px 8px;border-radius:8px;background:#eefbf9;color:var(--accent-2);font-weight:700}
+
+
+/*Telemedicina - Formulário */
+#onlineSchedule {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  background: #f9fbfc;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e6eef5;
+}
+
+/* Campos */
+#onlineSchedule input,
+#onlineSchedule select,
+#onlineSchedule textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid #cfdceb;
+  border-radius: 8px;
+  background: #fff;
+  outline: none;
+  transition: .2s;
+}
+
+#onlineSchedule textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+#onlineSchedule input:focus,
+#onlineSchedule select:focus,
+#onlineSchedule textarea:focus {
+  border-color: #0ea5a4;
+  box-shadow: 0 0 0 2px rgba(14,165,164,.2);
+}
+
+/* Label */
+#onlineSchedule label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+/* Botão de agendar */
+#bookTeleAppointment {
+  background: #0ea5a4;
+  padding: 14px 18px;
+  border-radius: 10px;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: .2s;
+}
+
+#bookTeleAppointment:hover {
+  background: #0f766e;
+  transform: translateY(-2px);
+}
+
+/* Tabela de consultas */
+#teleAppointmentsList tr:hover {
+  background: #f3f8fa;
+}

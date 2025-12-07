@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SGHSS — Protótipo | VidaPlus</title>
+  <meta name="description" content="Protótipo do Sistema de Gestão Hospitalar e de Serviços de Saúde (SGHSS) — VidaPlus.">
+
+  <!-- Fonte -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Icons (material) -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- CSS externo -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app" role="application" aria-labelledby="appTitle">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden>VP</div>
+        <div>
+          <h1 id="appTitle">SGHSS — VidaPlus</h1>
+          <p class="lead">Sistema de Gestão Hospitalar e de Serviços de Saúde</p>
+        </div>
+      </div>
+      <div class="controls" aria-hidden>
+        <button id="newPatientBtn">+ Novo Paciente</button>
+        <button class="ghost" id="openReports">Relatórios</button>
+      </div>
+    </header>
+
+    <nav class="topbar" aria-label="Barra superior">
+      <div class="search">
+        <span class="material-icons" aria-hidden>search</span>
+        <input id="globalSearch" type="search" placeholder="Buscar pacientes, profissionais ou protocolos" aria-label="Pesquisar">
+      </div>
+      <div class="controls">
+        <button class="ghost" id="helpBtn">Ajuda</button>
+        <button class="ghost" id="profileBtn"><span class="material-icons">account_circle</span></button>
+      </div>
+    </nav>
+
+    <main>
+      <aside class="sidebar" aria-label="Navegação principal">
+        <div class="navlist" role="navigation">
+          <div class="navitem" data-section="dashboard" aria-current="page"><span class="material-icons" aria-hidden>dashboard</span>Dashboard</div>
+          <div class="navitem" data-section="pacientes"><span class="material-icons" aria-hidden>people</span>Pacientes</div>
+          <div class="navitem" data-section="profissionais"><span class="material-icons" aria-hidden>medical_services</span>Profissionais</div>
+          <div class="navitem" data-section="administracao"><span class="material-icons" aria-hidden>apartment</span>Administração</div>
+          <div class="navitem" data-section="telemedicina"><span class="material-icons" aria-hidden>videocam</span>Telemedicina</div>
+          <div class="navitem" data-section="seguranca"><span class="material-icons" aria-hidden>security</span>Segurança & LGPD</div>
+        </div>
+
+        <div style="margin-top:18px">
+          <small class="muted">Unidades ativas</small>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <span class="badge">Hospital Central</span>
+            <span class="badge">Clínica Bairro Sul</span>
+            <span class="badge">Laboratório VidaLab</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace" id="workspace" tabindex="0">
+        <!-- Dashboard -->
+        <section class="card" data-section-content="dashboard">
+          <div class="row">
+            <div>
+              <h2 style="margin:0">Bem-vindo(a) ao SGHSS</h2>
+              <p class="small muted">Visão geral do sistema</p>
+            </div>
+            <div class="right">
+              <span class="pill">Disponibilidade: 99.7%</span>
+            </div>
+          </div>
+
+          <div style="margin-top:14px" class="grid-3">
+            <div class="card stats">
+              <small class="muted">Pacientes</small>
+              <div class="stat-value" id="statPatients">—</div>
+              <small class="muted">Novos na última semana: <span id="newPatientsWeek">—</span></small>
+            </div>
+            <div class="card stats">
+              <small class="muted">Atendimentos hoje</small>
+              <div class="stat-value" id="statAppointments">—</div>
+              <small class="muted">Teleconsultas ativas: <span id="teleActive">—</span></small>
+            </div>
+            <div class="card stats">
+              <small class="muted">Leitos ocupados</small>
+              <div class="stat-value" id="bedOccupancy">—</div>
+              <small class="muted">Suprimentos críticos: <span id="criticalSupplies">—</span></small>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pacientes -->
+        <section class="card" data-section-content="pacientes" hidden>
+          <div class="row">
+            <h3 style="margin:0">Pacientes</h3>
+            <div class="right small muted">Gerencie cadastros, histórico e agendamentos</div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:12px;flex-direction:column">
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+              <button id="addPatient">Cadastrar paciente</button>
+              <div style="flex:1"></div>
+              <input id="filterPatient" placeholder="Filtrar por nome ou CPF" style="padding:8px;border-radius:8px;border:1px solid #e6eef5">
+            </div>
+
+            <div class="card" style="margin-top:8px;padding:0;overflow:auto">
+              <table aria-label="Lista de pacientes">
+                <thead>
+                  <tr><th>Nome</th><th>Idade</th><th>Contato</th><th>Última visita</th><th></th></tr>
+                </thead>
+                <tbody id="patientsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Profissionais -->
+        <section class="card" data-section-content="profissionais" hidden>
+          <div class="row"><h3 style="margin:0">Profissionais de Saúde</h3><div class="right small muted">Gerencie escalas, agendas e prescrições</div></div>
+          <div style="margin-top:12px" class="grid-3">
+            <div class="card"><small class="muted">Médicos</small><div id="countDocs" class="stat-value">—</div></div>
+            <div class="card"><small class="muted">Enfermeiros</small><div id="countNurses" class="stat-value">—</div></div>
+            <div class="card"><small class="muted">Técnicos</small><div id="countTechs" class="stat-value">—</div></div>
+          </div>
+
+          <!-- SUBSTITUIÇÃO: Cadastro + lista de profissionais -->
+          <div class="card" style="margin-top:12px">
+            <h4>Cadastrar novo profissional</h4>
+
+            <form id="formNewProfessional" style="margin-top:8px">
+              <div class="form-row">
+                <div class="field">
+                  <label>Nome</label>
+                  <input type="text" id="profName" required>
+                </div>
+
+                <div class="field">
+                  <label>Função</label>
+                  <select id="profRole" required>
+                    <option value="">Selecione</option>
+                    <option>Médico</option>
+                    <option>Enfermeiro(a)</option>
+                    <option>Técnico de Enfermagem</option>
+                    <option>Recepção</option>
+                    <option>Outro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row" style="margin-top:8px">
+                <div class="field">
+                  <label>Especialidade</label>
+                  <input type="text" id="profSpecialty" placeholder="Ex: Cardiologia" required>
+                </div>
+
+                <div class="field">
+                  <label>Contato</label>
+                  <input type="text" id="profContact" placeholder="Ex: (48) 99999-1111">
+                </div>
+              </div>
+
+              <div style="margin-top:12px">
+                <button type="submit">Cadastrar profissional</button>
+              </div>
+            </form>
+          </div>
+
+          <div style="margin-top:12px" class="card">
+            <h4>Profissionais cadastrados</h4>
+            <p class="small muted">Gerenciamento dos profissionais</p>
+
+            <div style="margin-top:8px;padding:0;overflow:auto">
+              <table aria-label="Lista de profissionais" style="width:100%;border-collapse:collapse">
+                <thead>
+                  <tr><th>Nome</th><th>Função</th><th>Especialidade</th><th>Contato</th><th></th></tr>
+                </thead>
+                <tbody id="professionalsList">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Administração -->
+        <section class="card" data-section-content="administracao" hidden>
+          <div class="row"><h3 style="margin:0">Administração</h3><div class="right small muted">Leitos, suprimentos e relatórios financeiros</div></div>
+          <div style="margin-top:12px" class="grid-3">
+            <div class="card"><small class="muted">Leitos</small><div id="leitosStat">—</div></div>
+            <div class="card"><small class="muted">Reservas</small><div id="reservasStat">—</div></div>
+            <div class="card"><small class="muted">Financeiro (mês)</small><div id="financeStat">—</div></div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h4>Relatórios</h4>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <select id="reportType"><option value="internacoes">Internações</option><option value="financeiro">Financeiro</option><option value="consumo">Consumo de insumos</option></select>
+              <button id="generateReport">Gerar</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Telemedicina -->
+        <section class="card" data-section-content="telemedicina" hidden>
+          <div class="row"><h3 style="margin:0">Telemedicina</h3><div class="right small muted">Atendimentos online e prescrições digitais</div></div>
+          <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:260px">
+              <h4>Videochamada segura (simulada)</h4>
+              <p class="small muted">Protótipo mostra a interface de uma teleconsulta.</p>
+              <div style="margin-top:8px;display:flex;gap:8px">
+                <button id="startCall">Iniciar chamada</button>
+                <button class="ghost" id="endCall">Encerrar</button>
+              </div>
+            </div>
+            <div style="flex:1;min-width:260px">
+              <div style="background:#eef6f6;border-radius:10px;padding:12px">
+                <video id="callVideo" autoplay muted playsinline style="width:100%;border-radius:8px;background:black;min-height:200px"></video>
+                <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+                  <div class="pill">Conexão segura</div>
+                  <div class="right small muted">ID da sessão: <span id="callId">—</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FORMULÁRIO COMPLETO DE AGENDAMENTO -->
+          <div style="margin-top:20px">
+            <h4>Agendamento Online</h4>
+            <p class="small muted">Preencha todas as informações do paciente</p>
+
+            <div id="onlineSchedule" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+
+              <div>
+                <label>Nome do paciente</label>
+                <input type="text" id="teleName" placeholder="Ex: João da Silva">
+              </div>
+
+              <div>
+                <label>Contato</label>
+                <input type="text" id="teleContact" placeholder="Ex: (48) 99999-0000">
+              </div>
+
+              <div style="flex:1;min-width:260px">
+                <label>Sintomas</label>
+                <textarea id="teleSymptoms" placeholder="Ex: Febre, dor de cabeça"></textarea>
+              </div>
+
+              <div>
+                <label>Data</label>
+                <input type="date" id="teleDate">
+              </div>
+
+              <div>
+                <label>Horário</label>
+                <select id="teleTime"></select>
+              </div>
+
+              <button id="bookTeleAppointment">Agendar consulta</button>
+            </div>
+          </div>
+
+          <!-- LISTA DE AGENDAMENTOS (COM CANCELAR) -->
+          <div style="margin-top:18px">
+            <h4>Agendamentos marcados:</h4>
+            <p class="small muted">Veja, filtre e cancele consultas agendadas</p>
+
+            <div class="card" style="margin-top:8px;padding:0;overflow:auto">
+              <table aria-label="Agendamentos de telemedicina">
+                <thead>
+                  <tr><th>Paciente</th><th>Contato</th><th>Sintomas</th><th>Data</th><th>Horário</th><th></th></tr>
+                </thead>
+                <tbody id="teleAppointmentsList">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Segurança -->
+        <section class="card" data-section-content="seguranca" hidden>
+          <div class="row"><h3 style="margin:0">Segurança & Compliance</h3><div class="right small muted">LGPD, logs e controle de acesso</div></div>
+          <div style="margin-top:12px" class="grid-3">
+            <div class="card"><small class="muted">Criptografia</small><div class="small muted">para dados sensíveis (descrição técnica)</div></div>
+            <div class="card"><small class="muted">Controle de Acesso</small><div class="small muted">Perfis por função</div></div>
+            <div class="card"><small class="muted">Auditoria</small><div class="small muted">Registros imutáveis (logs)</div></div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h4>Configurações</h4>
+            <form id="securityForm">
+              <label><input type="checkbox" id="encryptAtRest" checked> Criptografar dados em repouso</label><br>
+              <label><input type="checkbox" id="accessLogs" checked> Habilitar registros de auditoria</label><br>
+              <label for="retention">Política de retenção (dias)</label>
+              <input id="retention" type="number" value="365" min="30" max="3650">
+              <div style="margin-top:10px"><button type="submit">Salvar</button></div>
+            </form>
+          </div>
+        </section>
+
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2025 VidaPlus - Todos os direitos reservados. | Projeto acadêmico Uninter - Aluna: Andressa Bruna Gobbi (RU: 4557019). </p>
+    </footer>
+
+    <div id="modalRoot" aria-hidden></div>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
