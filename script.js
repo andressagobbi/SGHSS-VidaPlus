@@ -1,6 +1,5 @@
 /**
  * Sistema de Gestão Hospitalar Simplificado (SGHSS) - Demo
- * Integrado: cadastro/exclusão/profissionais + persistência
  * @author Andressa Bruna Gobbi
  */
 
